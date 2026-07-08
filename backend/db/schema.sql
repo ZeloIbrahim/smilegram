@@ -6,10 +6,10 @@ CREATE TABLE IF NOT EXISTS users (
     prenom TEXT NOT NULL,
     nom TEXT NOT NULL,
     photo_profil TEXT,
-    points_total INTEGER NOT NULL,
-    streak_actuel INTEGER NOT NULL,
-    meilleur_streak INTEGER NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    points_total INTEGER NOT NULL DEFAULT 0,
+    streak_actuel INTEGER NOT NULL DEFAULT 0,
+    meilleur_streak INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS photos (
