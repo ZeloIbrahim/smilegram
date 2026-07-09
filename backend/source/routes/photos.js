@@ -51,17 +51,83 @@ router.post("/", authMiddleware, upload.single("photo"), (req, res) => {
   });
 });
 
-router.get("/feed", authMiddleware, (req, res) => {
+
+  router.get("/feed", authMiddleware, (req, res) => {
   const photos = db.prepare(`
     SELECT photos.id, photos.photo_path, photos.date_publication, photos.created_at,
-           users.username, users.photo_profil
+           users.username, users.photo_profil,
+           (SELECT COUNT(*) FROM likes WHERE likes.photo_id = photos.id) AS likes_count,
+           (SELECT COUNT(*) FROM comments WHERE comments.photo_id = photos.id) AS comments_count,
+           (SELECT COUNT(*) FROM likes WHERE likes.photo_id = photos.id AND likes.user_id = ?) AS a_like
     FROM photos
     JOIN users ON users.id = photos.user_id
     ORDER BY photos.created_at DESC
     LIMIT 30
-  `).all();
+  `).all(req.user.id);
 
   res.json({ photos });
+});
+
+
+router.post("/:id/like", authMiddleware, (req, res) => {
+  const userId = req.user.id;
+  const photoId = req.params.id;
+ 
+  const photo = db.prepare("SELECT id FROM photos WHERE id = ?").get(photoId);
+  if (!photo) return res.status(404).json({ erreur: "Photo introuvable" });
+ 
+  const dejaLike = db.prepare(
+    "SELECT id FROM likes WHERE user_id = ? AND photo_id = ?"
+  ).get(userId, photoId);
+ 
+  if (dejaLike) {
+    db.prepare("DELETE FROM likes WHERE id = ?").run(dejaLike.id);
+  } else {
+    db.prepare("INSERT INTO likes (user_id, photo_id) VALUES (?, ?)").run(userId, photoId);
+  }
+ 
+  const { count } = db.prepare(
+    "SELECT COUNT(*) AS count FROM likes WHERE photo_id = ?"
+  ).get(photoId);
+ 
+  res.json({ likes_count: count, a_like: !dejaLike });
+});
+ 
+router.get("/:id/comments", authMiddleware, (req, res) => {
+  const photo = db.prepare("SELECT id FROM photos WHERE id = ?").get(req.params.id);
+  if (!photo) return res.status(404).json({ erreur: "Photo introuvable" });
+ 
+  const comments = db.prepare(`
+    SELECT comments.id, comments.texte, comments.created_at, users.username
+    FROM comments
+    JOIN users ON users.id = comments.user_id
+    WHERE comments.photo_id = ?
+    ORDER BY comments.created_at ASC
+  `).all(req.params.id);
+ 
+  res.json({ comments });
+});
+ 
+router.post("/:id/comments", authMiddleware, (req, res) => {
+  const { texte } = req.body;
+  if (!texte || !texte.trim()) {
+    return res.status(400).json({ erreur: "Le commentaire ne peut pas etre vide" });
+  }
+ 
+  const photo = db.prepare("SELECT id FROM photos WHERE id = ?").get(req.params.id);
+  if (!photo) return res.status(404).json({ erreur: "Photo introuvable" });
+ 
+  const result = db.prepare(
+    "INSERT INTO comments (user_id, photo_id, texte) VALUES (?, ?, ?)"
+  ).run(req.user.id, req.params.id, texte.trim());
+ 
+  const comment = db.prepare(`
+    SELECT comments.id, comments.texte, comments.created_at, users.username
+    FROM comments JOIN users ON users.id = comments.user_id
+    WHERE comments.id = ?
+  `).get(result.lastInsertRowid);
+ 
+  res.status(201).json(comment);
 });
 
 module.exports = router;

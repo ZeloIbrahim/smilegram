@@ -24,3 +24,25 @@ CREATE TABLE IF NOT EXISTS photos (
 );
 
 CREATE INDEX IF NOT EXISTS idx_photos_date on photos(date_publication);
+
+
+-- partie 2 du backend finalement je compte ajouter les likes+comments
+
+CREATE TABLE IF NOT EXISTS likes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL REFERENCES users(id),
+  photo_id    INTEGER NOT NULL REFERENCES photos(id),
+  created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, photo_id)   -- empeche de liker deux fois la meme photo
+);
+ 
+CREATE TABLE IF NOT EXISTS comments (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL REFERENCES users(id),
+  photo_id    INTEGER NOT NULL REFERENCES photos(id),
+  texte       TEXT NOT NULL,
+  created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+);
+ 
+CREATE INDEX IF NOT EXISTS idx_likes_photo ON likes(photo_id);
+CREATE INDEX IF NOT EXISTS idx_comments_photo ON comments(photo_id);
